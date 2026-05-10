@@ -10,7 +10,7 @@ website: https://github.com/SchnTgaiSpock/SlimeHUD
 
 version: ${project.version}
 
-api-version: 1.14
+api-version: '26'
 
 depend:
 - Slimefun

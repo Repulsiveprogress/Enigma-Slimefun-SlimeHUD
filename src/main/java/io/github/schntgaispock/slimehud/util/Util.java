@@ -2,43 +2,59 @@ package io.github.schntgaispock.slimehud.util;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.logging.Level;
 
-import org.bukkit.boss.BarColor;
+import net.kyori.adventure.bossbar.BossBar;
 
 import io.github.schntgaispock.slimehud.SlimeHUD;
-import lombok.Data;
-import lombok.experimental.UtilityClass;
-import net.md_5.bungee.api.ChatColor;
 
-@UtilityClass
-public class Util {
-    @Data
-    private class RGB {
-        private final int red;
-        private final int green;
-        private final int blue;
+public final class Util {
 
-        public int[] asArray() {
+    private Util() {}
+
+    private static final class RGB {
+        final int red;
+        final int green;
+        final int blue;
+
+        RGB(int red, int green, int blue) {
+            this.red = red;
+            this.green = green;
+            this.blue = blue;
+        }
+
+        int[] asArray() {
             return new int[] {red, green, blue};
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof RGB r)) return false;
+            return red == r.red && green == r.green && blue == r.blue;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(red, green, blue);
         }
     }
 
-    private static HashMap<RGB, BarColor> barColorRGBMap = new HashMap<>();
-    private static HashMap<RGB, BarColor> savedBarColors = new HashMap<>();
+    private static final HashMap<RGB, BossBar.Color> barColorRGBMap = new HashMap<>();
+    private static final HashMap<RGB, BossBar.Color> savedBarColors = new HashMap<>();
 
     static {
-        barColorRGBMap.put(new RGB(0x00, 0xb9, 0xec), BarColor.BLUE);
-        barColorRGBMap.put(new RGB(0x16, 0xb9, 0x00), BarColor.GREEN);
-        barColorRGBMap.put(new RGB(0xb9, 0x00, 0x90), BarColor.PINK);
-        barColorRGBMap.put(new RGB(0x61, 0x00, 0xb9), BarColor.PURPLE);
-        barColorRGBMap.put(new RGB(0xb9, 0x2a, 0x00), BarColor.RED);
-        barColorRGBMap.put(new RGB(0xff, 0xff, 0xff), BarColor.WHITE);
-        barColorRGBMap.put(new RGB(0xb9, 0xb9, 0x00), BarColor.YELLOW);
+        barColorRGBMap.put(new RGB(0x00, 0xb9, 0xec), BossBar.Color.BLUE);
+        barColorRGBMap.put(new RGB(0x16, 0xb9, 0x00), BossBar.Color.GREEN);
+        barColorRGBMap.put(new RGB(0xb9, 0x00, 0x90), BossBar.Color.PINK);
+        barColorRGBMap.put(new RGB(0x61, 0x00, 0xb9), BossBar.Color.PURPLE);
+        barColorRGBMap.put(new RGB(0xb9, 0x2a, 0x00), BossBar.Color.RED);
+        barColorRGBMap.put(new RGB(0xff, 0xff, 0xff), BossBar.Color.WHITE);
+        barColorRGBMap.put(new RGB(0xb9, 0xb9, 0x00), BossBar.Color.YELLOW);
     }
-    
-    public static BarColor pickBarColorFromName(String name) {
-        char colorCode = name.trim().toLowerCase().startsWith("§") ? name.charAt(1) : ' ';
+
+    public static BossBar.Color pickBarColorFromName(String name) {
+        char colorCode = name.trim().startsWith("§") ? name.charAt(1) : ' ';
         if (colorCode == 'x') {
             try {
                 final String stripped = name.replace("§", "");
@@ -50,83 +66,69 @@ public class Util {
 
                 if (savedBarColors.containsKey(rgb)) {
                     return savedBarColors.get(rgb);
-                } 
+                }
 
-                BarColor color = barColorRGBMap.get(Collections.min(barColorRGBMap.keySet(), (RGB a, RGB b) -> {
-                    return (errorSquared(a.asArray(), rgb.asArray()) < errorSquared(b.asArray(), rgb.asArray())) ? -1 : 1;
-                }));
+                BossBar.Color color = barColorRGBMap.get(Collections.min(barColorRGBMap.keySet(), (RGB a, RGB b) ->
+                    (errorSquared(a.asArray(), rgb.asArray()) < errorSquared(b.asArray(), rgb.asArray())) ? -1 : 1
+                ));
 
                 savedBarColors.put(rgb, color);
                 return color;
 
             } catch (NumberFormatException e) {
-                return BarColor.WHITE;
+                return BossBar.Color.WHITE;
             }
         }
 
         return switch (colorCode) {
-            case '4', 'c' ->  BarColor.RED;
-            case '6', 'e' -> BarColor.YELLOW;
-            case '2', 'a' -> BarColor.GREEN;
-            case '3', 'b' -> BarColor.BLUE;
-            case '1', '5', '9' -> BarColor.PURPLE;
-            case 'd' -> BarColor.PINK;
-            default -> BarColor.WHITE;
+            case '4', 'c' -> BossBar.Color.RED;
+            case '6', 'e' -> BossBar.Color.YELLOW;
+            case '2', 'a' -> BossBar.Color.GREEN;
+            case '3', 'b' -> BossBar.Color.BLUE;
+            case '1', '5', '9' -> BossBar.Color.PURPLE;
+            case 'd' -> BossBar.Color.PINK;
+            default -> BossBar.Color.WHITE;
         };
     }
 
-    public static BarColor pickBarColorFromColor(String color) {
-        switch (color.trim()) {
-            case "red", "yellow", "green", "blue", "purple", "pink", "white":
-                return BarColor.valueOf(color.toUpperCase());
-
-            case "default", "inherit":
-                return BarColor.WHITE;
-        
-            default:
-                SlimeHUD.log(Level.WARNING, "[SlimeHUD] Invalid bossbar color: " + color, "[SlimeHUD] Setting color to white...");
-                return BarColor.WHITE;
-        }
+    public static BossBar.Color pickBarColorFromColor(String color) {
+        return switch (color.trim()) {
+            case "red" -> BossBar.Color.RED;
+            case "yellow" -> BossBar.Color.YELLOW;
+            case "green" -> BossBar.Color.GREEN;
+            case "blue" -> BossBar.Color.BLUE;
+            case "purple" -> BossBar.Color.PURPLE;
+            case "pink" -> BossBar.Color.PINK;
+            case "white", "default", "inherit" -> BossBar.Color.WHITE;
+            default -> {
+                SlimeHUD.log(Level.WARNING,
+                    "[SlimeHUD] Invalid bossbar color: " + color,
+                    "[SlimeHUD] Setting color to white...");
+                yield BossBar.Color.WHITE;
+            }
+        };
     }
 
-    public static ChatColor getColorFromCargoChannel(int channel) {
-        switch (channel) {
-            case 1:
-                return ChatColor.WHITE;
-            case 2:
-                return ChatColor.GOLD;
-            case 3:
-                return ChatColor.BLUE; // No magenta
-            case 4:
-                return ChatColor.AQUA;
-            case 5:
-                return ChatColor.YELLOW;
-            case 6:
-                return ChatColor.GREEN;
-            case 7:
-                return ChatColor.LIGHT_PURPLE;
-            case 8:
-                return ChatColor.DARK_GRAY;
-            case 9:
-                return ChatColor.GRAY;
-            case 10:
-                return ChatColor.DARK_AQUA;
-            case 11:
-                return ChatColor.DARK_PURPLE;
-            case 12:
-                return ChatColor.DARK_BLUE;
-            case 13:
-                return ChatColor.RED; // No brown
-            case 14:
-                return ChatColor.DARK_GREEN;
-            case 15:
-                return ChatColor.DARK_RED;
-            case 16:
-                return ChatColor.BLACK;
-        
-            default:
-                return ChatColor.WHITE;
-        }
+    public static String getColorFromCargoChannel(int channel) {
+        return switch (channel) {
+            case 1 -> "§f";
+            case 2 -> "§6";
+            case 3 -> "§9";
+            case 4 -> "§b";
+            case 5 -> "§e";
+            case 6 -> "§a";
+            case 7 -> "§d";
+            case 8 -> "§8";
+            case 9 -> "§7";
+            case 10 -> "§3";
+            case 11 -> "§5";
+            case 12 -> "§1";
+            case 13 -> "§c";
+            case 14 -> "§2";
+            case 15 -> "§4";
+            case 16 -> "§0";
+            default -> "§f";
+        };
     }
 
     public static int errorSquared(int[] a, int[] b) {
@@ -139,5 +141,4 @@ public class Util {
 
         return total;
     }
-
 }

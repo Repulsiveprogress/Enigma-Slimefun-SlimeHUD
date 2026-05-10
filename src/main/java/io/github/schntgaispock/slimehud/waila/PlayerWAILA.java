@@ -2,100 +2,88 @@ package io.github.schntgaispock.slimehud.waila;
 
 import javax.annotation.Nonnull;
 
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.kyori.adventure.bossbar.BossBar;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
-import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import io.github.schntgaispock.slimehud.SlimeHUD;
 import io.github.schntgaispock.slimehud.util.Util;
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem;
-import lombok.Getter;
 import me.mrCookieSlime.Slimefun.api.BlockStorage;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
 
 public class PlayerWAILA extends BukkitRunnable {
 
-    final private @Nonnull
-    @Getter Player player;
-    final private @Getter BossBar WAILABar; // Bossbar
-    final private String WAILALocation;
-    final private boolean useAutoBossBarColor;
-    final private boolean keepTextColors;
-    /**
-     * Returns an empty string if not a Slimefun item. Otherwise returns the
-     * formatted item name
-     */
-    @Getter
+    private final @Nonnull Player player;
+    private final BossBar WAILABar;
+    private final String WAILALocation;
+    private final boolean useAutoBossBarColor;
+    private final boolean keepTextColors;
+
     private String facing = "";
-    @Getter
     private String facingBlock = "";
-    @Getter
     private String facingBlockInfo = "";
     private String previousFacing = "";
+    private boolean paused;
 
-    private @Getter boolean paused;
+    private static final LegacyComponentSerializer LEGACY_SECTION = LegacyComponentSerializer.legacySection();
 
     public PlayerWAILA(@Nonnull Player player) {
         this.WAILALocation = SlimeHUD.getInstance().getConfig().getString("waila.location");
-
         this.player = player;
 
         String bossbarColor = SlimeHUD.getInstance().getConfig().getString("waila.bossbar-color").trim().toLowerCase();
         this.useAutoBossBarColor = bossbarColor.equals("inherit");
-        this.WAILABar = Bukkit.createBossBar("", Util.pickBarColorFromColor(bossbarColor), BarStyle.SOLID);
-        WAILABar.addPlayer(player);
-        WAILABar.setVisible(false);
+
+        BossBar.Color color = Util.pickBarColorFromColor(bossbarColor);
+        this.WAILABar = BossBar.bossBar(Component.empty(), 1.0f, color, BossBar.Overlay.PROGRESS);
+        player.showBossBar(WAILABar);
 
         this.keepTextColors = SlimeHUD.getInstance().getConfig().getBoolean("waila.use-original-colors");
     }
 
-    /**
-     * Called every <code>waila.tick-rate</code> ticks
-     */
     @Override
     public void run() {
         updateFacing();
 
-        if (isPaused()) {
+        if (paused) {
             return;
         }
 
-        String facing = getFacing();
         if (facing.equals(previousFacing)) {
-            return; // Nothing changed, skip for now
+            return;
         }
 
         previousFacing = facing;
         switch (WAILALocation) {
-            case "bossbar":
-                if (facing.equals("")) {
-                    WAILABar.setVisible(false);
+            case "bossbar" -> {
+                if (facing.isEmpty()) {
+                    WAILABar.name(Component.empty());
+                    player.hideBossBar(WAILABar);
                     break;
-                } else {
-                    WAILABar.setVisible(true);
                 }
+                player.showBossBar(WAILABar);
 
-                WAILABar.setTitle(keepTextColors ? facing : ChatColor.stripColor(facing));
+                Component title = keepTextColors
+                    ? LEGACY_SECTION.deserialize(facing)
+                    : Component.text(PlainTextComponentSerializer.plainText()
+                        .serialize(LEGACY_SECTION.deserialize(facing)));
 
                 if (useAutoBossBarColor) {
-                    WAILABar.setColor(Util.pickBarColorFromName(facing));
+                    WAILABar.color(Util.pickBarColorFromName(facing));
                 }
 
-                break;
-
-            case "hotbar":
-                getPlayer().spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(facing));
-                break;
-            default:
-                break;
+                WAILABar.name(title);
+            }
+            case "hotbar" -> {
+                player.sendActionBar(LEGACY_SECTION.deserialize(facing));
+            }
+            default -> {}
         }
-
     }
 
     private void updateFacing() {
@@ -115,7 +103,9 @@ public class PlayerWAILA extends BukkitRunnable {
         HudRequest request = new HudRequest(item, target, player);
         facingBlock = SlimeHUD.getTranslationManager().getItemName(player, item);
         facingBlockInfo = SlimeHUD.getHudController().processRequest(request);
-        facing = ChatColor.translateAlternateColorCodes('&', facingBlock + (facingBlockInfo.isEmpty() ? "" : " &7| " + facingBlockInfo));
+
+        String raw = facingBlock + (facingBlockInfo.isEmpty() ? "" : " &7| " + facingBlockInfo);
+        facing = raw.replace("&", "§");
     }
 
     private void clearFacing() {
@@ -125,18 +115,49 @@ public class PlayerWAILA extends BukkitRunnable {
     }
 
     public void setPaused(boolean paused) {
-        setVisible(!previousFacing.equals("") && !paused);
+        if (paused) {
+            player.hideBossBar(WAILABar);
+        } else if (!previousFacing.isEmpty()) {
+            player.showBossBar(WAILABar);
+        }
         this.paused = paused;
     }
 
+    public boolean isPaused() {
+        return paused;
+    }
+
+    public @Nonnull Player getPlayer() {
+        return player;
+    }
+
+    public BossBar getWAILABar() {
+        return WAILABar;
+    }
+
+    public String getFacing() {
+        return facing;
+    }
+
+    public String getFacingBlock() {
+        return facingBlock;
+    }
+
+    public String getFacingBlockInfo() {
+        return facingBlockInfo;
+    }
+
     public PlayerWAILA setVisible(boolean visible) {
-        WAILABar.setVisible(visible);
+        if (visible) {
+            player.showBossBar(WAILABar);
+        } else {
+            player.hideBossBar(WAILABar);
+        }
         return this;
     }
 
     @Override
     public int hashCode() {
-        return getPlayer().hashCode();
+        return player.hashCode();
     }
-
 }

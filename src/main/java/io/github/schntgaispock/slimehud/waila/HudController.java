@@ -63,7 +63,7 @@ public class HudController {
             return "";
         }
 
-        Network en = EnergyNet.getNetworkFromLocation(request.getLocation());
+        Network en = EnergyNet.getNetworkFromLocation(request.location());
         int size = getNetworkSize(en);
         return size < 0 ? "" : "Network Size: " + HudBuilder.getCommaNumber(size);
     }
@@ -74,13 +74,13 @@ public class HudController {
             return "";
         }
 
-        EnergyNetComponent enc = (EnergyNetComponent) request.getSlimefunItem();
+        EnergyNetComponent enc = (EnergyNetComponent) request.slimefunItem();
         EnergyNetComponentType enct = enc.getEnergyComponentType();
         if ((enct == EnergyNetComponentType.CAPACITOR ||
                 enct == EnergyNetComponentType.GENERATOR ||
                 enct == EnergyNetComponentType.CONSUMER) &&
                 enc.getCapacity() > 0) {
-            return HudBuilder.formatEnergyStored(enc.getCharge(request.getLocation()), enc.getCapacity());
+            return HudBuilder.formatEnergyStored(enc.getCharge(request.location()), enc.getCapacity());
         }
         return "";
     }
@@ -94,13 +94,12 @@ public class HudController {
             return "";
         }
 
-        MachineProcessHolder<MachineOperation> machine = (MachineProcessHolder<MachineOperation>) request
-                .getSlimefunItem();
-        MachineOperation operation = machine.getMachineProcessor().getOperation(request.getLocation());
+        MachineProcessHolder<MachineOperation> machine = (MachineProcessHolder<MachineOperation>) request.slimefunItem();
+        MachineOperation operation = machine.getMachineProcessor().getOperation(request.location());
 
         if (operation == null) {
             hudText.append("Idle");
-            if (request.getSlimefunItem() instanceof EnergyNetComponent) {
+            if (request.slimefunItem() instanceof EnergyNetComponent) {
                 hudText.append(" ").append(processCapacitor(request));
             }
             return hudText.toString();
@@ -111,7 +110,7 @@ public class HudController {
         
         hudText.append(HudBuilder.formatProgressBar(progress, total));
         
-        if (request.getSlimefunItem() instanceof AGenerator) {
+        if (request.slimefunItem() instanceof AGenerator) {
             hudText.append(" ").append(processGenerator(request));
         }
 
@@ -126,7 +125,7 @@ public class HudController {
             return "";
         }
 
-        AGenerator gen = (AGenerator) request.getSlimefunItem();
+        AGenerator gen = (AGenerator) request.slimefunItem();
         int generation = gen.getEnergyProduction();
         if (generation > 0) {
             hudText.append(HudBuilder.formatEnergyGenerated(generation));
@@ -149,9 +148,9 @@ public class HudController {
             return "";
         }
 
-        SolarGenerator gen = (SolarGenerator) request.getSlimefunItem();
+        SolarGenerator gen = (SolarGenerator) request.slimefunItem();
         // Solar Generators dont use any fuel, so it's ok to call getGeneratedOutput
-        int generation = gen.getGeneratedOutput(request.getLocation(), null);
+        int generation = gen.getGeneratedOutput(request.location(), null);
         if (generation > 0) {
             hudText.append(HudBuilder.formatEnergyGenerated(generation));
         } else {
@@ -170,9 +169,9 @@ public class HudController {
         if (!SlimeHUD.getInstance().getConfig().getBoolean("waila.show-cargo-channel")) {
             return "";
         }
-        CargoNode cn = (CargoNode) request.getSlimefunItem();
-        int channel = cn.getSelectedChannel(request.getLocation().getBlock()) + 1;
-        return "Channel: " + Util.getColorFromCargoChannel(channel).toString() + channel;
+        CargoNode cn = (CargoNode) request.slimefunItem();
+        int channel = cn.getSelectedChannel(request.location().getBlock()) + 1;
+        return "Channel: " + Util.getColorFromCargoChannel(channel) + channel;
     }
 
     @Nonnull
@@ -180,7 +179,7 @@ public class HudController {
         if (!SlimeHUD.getInstance().getConfig().getBoolean("waila.show-cargo-size")) {
             return "";
         }
-        Network cn = CargoNet.getNetworkFromLocation(request.getLocation());
+        Network cn = CargoNet.getNetworkFromLocation(request.location());
 
         int size = getNetworkSize(cn);
         return size < 0 ? "" : "Network Size: " + HudBuilder.getCommaNumber(size);
@@ -227,7 +226,7 @@ public class HudController {
 
     @Nonnull
     public String processRequest(@Nonnull HudRequest request) {
-        Function<HudRequest, String> handler = tryGetHandler(request.getSlimefunItem());
+        Function<HudRequest, String> handler = tryGetHandler(request.slimefunItem());
         if (handler == null) {
             // No handler found, return empty string
             return "";

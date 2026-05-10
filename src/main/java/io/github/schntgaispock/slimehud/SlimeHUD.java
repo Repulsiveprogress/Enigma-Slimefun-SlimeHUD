@@ -1,6 +1,5 @@
 package io.github.schntgaispock.slimehud;
 
-
 import javax.annotation.Nonnull;
 
 import io.github.schntgaispock.slimehud.placeholder.PlaceholderManager;
@@ -9,56 +8,52 @@ import io.github.schntgaispock.slimehud.waila.HudController;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
 import org.bukkit.NamespacedKey;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
 
-import io.github.mooy1.infinitylib.core.AbstractAddon;
-import io.github.mooy1.infinitylib.core.AddonConfig;
 import io.github.schntgaispock.slimehud.command.CommandManager;
 import io.github.schntgaispock.slimehud.waila.WAILAManager;
-import io.github.thebusybiscuit.slimefun4.libraries.dough.updater.BlobBuildUpdater;
-import lombok.Getter;
 
-public class SlimeHUD extends AbstractAddon {
+import java.io.File;
+import java.util.logging.Level;
 
-    @Getter AddonConfig playerData;
-    static @Getter SlimeHUD instance;
+public class SlimeHUD extends JavaPlugin {
+
+    private FileConfiguration playerData;
+    private File playerDataFile;
+
+    private static SlimeHUD instance;
     private HudController hudController;
     private TranslationManager translationManager;
 
-    public SlimeHUD() {
-        super("SchnTgaiSpock", "SlimeHUD", "master", "options.auto-update");
+    public static SlimeHUD getInstance() {
+        return instance;
     }
 
+    public FileConfiguration getPlayerData() {
+        return playerData;
+    }
 
     @Override
-    public void enable() {
+    public void onEnable() {
         instance = this;
+
+        saveDefaultConfig();
 
         getLogger().info("#=================================#");
         getLogger().info("#    SlimeHUD by SchnTgaiSpock    #");
         getLogger().info("#=================================#");
 
-        if (getConfig().getBoolean("options.auto-update")) {
-            if (getDescription().getVersion().startsWith("Dev - ")) {
-                new BlobBuildUpdater(this, getFile(), "SlimeHUD", "Dev").start();
-            } else {
-                getLogger().info("This is an unofficial build of SlimeHUD, so auto updates are disabled!");
-                getLogger().info("You can download the official build here: https://blob.build/project/SlimeHUD");
-            }
-        }
+        loadPlayerData();
 
         final Metrics metrics = new Metrics(this, 15883);
         metrics.addCustomChart(
-            new SimplePie("disabled", () -> {
-                return "" + getConfig().getBoolean("waila.disabled");
-            })
+            new SimplePie("disabled", () -> getConfig().getBoolean("waila.disabled") + "")
         );
         metrics.addCustomChart(
-            new SimplePie("waila_location", () -> {
-                return getConfig().getString("waila.location");
-            })
+            new SimplePie("waila_location", () -> getConfig().getString("waila.location"))
         );
-
-        playerData = new AddonConfig("player.yml");
 
         WAILAManager.setup();
         CommandManager.setup();
@@ -68,9 +63,25 @@ public class SlimeHUD extends AbstractAddon {
     }
 
     @Override
-    public void disable() {
+    public void onDisable() {
+        savePlayerData();
         instance = null;
-        getPlayerData().save();
+    }
+
+    private void loadPlayerData() {
+        playerDataFile = new File(getDataFolder(), "player.yml");
+        if (!playerDataFile.exists()) {
+            saveResource("player.yml", false);
+        }
+        playerData = YamlConfiguration.loadConfiguration(playerDataFile);
+    }
+
+    public void savePlayerData() {
+        try {
+            playerData.save(playerDataFile);
+        } catch (Exception e) {
+            getLogger().log(Level.SEVERE, "Could not save player.yml!", e);
+        }
     }
 
     public static HudController getHudController() {
@@ -83,5 +94,15 @@ public class SlimeHUD extends AbstractAddon {
 
     public static NamespacedKey newNamespacedKey(@Nonnull String name) {
         return new NamespacedKey(SlimeHUD.getInstance(), name);
+    }
+
+    public static void log(Level level, String... messages) {
+        for (String msg : messages) {
+            getInstance().getLogger().log(level, msg);
+        }
+    }
+
+    public String getPluginVersion() {
+        return getDescription().getVersion();
     }
 }
